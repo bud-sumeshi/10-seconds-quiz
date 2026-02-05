@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>10秒当てクイズ</title>
+<style>
+  body {
+    text-align: center;
+  margin-top: clamp(20px, 6vh, 60px);
+  padding: 0 10px;
+  }
+
+  #time {
+    font-size: clamp(40px, 14vw, 72px);
+    margin: 30px;
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  .hidden { opacity: 0; }
+  .big { transform: scale(1.5); }
+
+  button {
+  font-size: 20px;
+  padding: 14px 22px;
+  touch-action: manipulation;
+}
+
+  #ranking {
+  margin-top: 30px;
+  display: inline-block;
+  text-align: left;
+}
+
+#ranking ol {
+  padding-left: 0;
+  list-style: none;
+}
+
+.perfect-time {
+  color: gold;
+  transform: scale(1.7);
+}
+
+#perfect {
+  font-size: 36px;
+  color: gold;
+  margin-top: 20px;
+  animation: pop 0.6s ease-out;
+}
+
+#perfectCount{
+  color: red;
+  font-weight: bold;
+}
+
+@keyframes pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+</style>
+</head>
+
+
+<body>
+
+<h1>10秒当てクイズ</h1>
+
+<div id="time">0.00</div>
+<div id="perfect" style="display:none;">🎉 PERFECT!! 🎉</div>
+
+<button id="startBtn">START</button>
+<button id="stopBtn" disabled>STOP</button>
+
+<p id="result"></p>
+<p id="perfectCount">PERFECT回数：0</p>
+
+<div id="ranking">
+  <h2>🏆 ランキング</h2>
+  <ol id="rankingList"></ol>
+</div>
+
+<script>
+let startTime = 0;
+let timerId = null;
+let hideTimerId = null;
+
+const timeDiv = document.getElementById("time");
+const resultP = document.getElementById("result");
+const rankingList = document.getElementById("rankingList");
+const startBtn = document.getElementById("startBtn");
+const stopBtn = document.getElementById("stopBtn");
+const perfectDiv = document.getElementById("perfect");
+
+const STORAGE_KEY = "ten_sec_ranking";
+const PERFECT_KEY = "ten_sec_perfect_count";
+
+// ランキング取得
+function loadRanking() {
+  const data = localStorage.getItem(STORAGE_KEY);
+  return data ? JSON.parse(data) : [];
+}
+
+// ランキング保存
+function saveRanking(ranking) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(ranking));
+}
+
+// ランキング表示
+function showRanking() {
+  const ranking = loadRanking();
+  rankingList.innerHTML = "";
+
+  ranking.forEach((r, i) => {
+    const li = document.createElement("li");
+    li.textContent =
+      `${i + 1}位：${r.time.toFixed(2)} 秒（差 ${r.diff.toFixed(2)}）`;
+    rankingList.appendChild(li);
+  });
+}
+
+function loadPerfectCount() {
+  const count = localStorage.getItem(PERFECT_KEY);
+  return count ? parseInt(count) : 0;
+}
+
+function savePerfectCount(count) {
+  localStorage.setItem(PERFECT_KEY, count);
+}
+
+function showPerfectCount() {
+  const count = loadPerfectCount();
+  document.getElementById("perfectCount").textContent =
+    `PERFECT回数：${count}`;
+}
+
+// START
+function onStart() {
+  startTime = performance.now();
+  resultP.textContent = "";
+  timeDiv.textContent = "0.00";
+  timeDiv.classList.remove("hidden", "big", "perfect-time");
+  perfectDiv.style.display = "none";
+
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
+
+  timerId = setInterval(() => {
+    const now = performance.now();
+    const elapsed = (now - startTime) / 1000;
+    timeDiv.textContent = elapsed.toFixed(2);
+  }, 10);
+
+  hideTimerId = setTimeout(() => {
+    timeDiv.classList.add("hidden");
+  }, 3000);
+}
+
+// stop
+function onStop() {
+  clearInterval(timerId);
+  clearTimeout(hideTimerId);
+
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+
+  timeDiv.classList.remove("hidden");
+  timeDiv.classList.add("big");
+
+  const finalTime = parseFloat(timeDiv.textContent);
+  const diff = Math.abs(10 - finalTime);
+
+  if (finalTime.toFixed(2) === "10.00") {
+    timeDiv.classList.add("perfect-time");
+    perfectDiv.style.display = "block";
+    let count = loadPerfectCount();
+    savePerfectCount(++count);
+    showPerfectCount();
+  } else {
+    timeDiv.classList.remove("perfect-time");
+    perfectDiv.style.display = "none";
+  }
+
+  let message = "";
+  if (diff < 0.05) message = "神すぎる";
+  else if (diff < 0.20) message = "すごい";
+  else if (diff < 0.50) message = "惜しい";
+  else message = "残念";
+
+  resultP.textContent = `結果：${finalTime.toFixed(2)} 秒（${message}）`;
+
+  // ランキング更新
+  let ranking = loadRanking();
+  ranking.push({ time: finalTime, diff });
+  ranking.sort((a, b) => a.diff - b.diff);
+  ranking = ranking.slice(0, 5);
+  saveRanking(ranking);
+  showRanking();
+}
+
+//イベント登録
+startBtn.addEventListener("click", onStart);
+stopBtn.addEventListener("click", onStop);
+
+// 初回表示
+showRanking();
+showPerfectCount();
+</script>
+
+</body>
+</html>
