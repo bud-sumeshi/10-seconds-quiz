@@ -11,6 +11,10 @@
   padding: 0 10px;
   }
 
+  #auth {
+  margin-top: 80px;
+}
+
   #time {
     font-size: clamp(40px, 14vw, 72px);
     margin: 30px;
@@ -63,6 +67,15 @@
 
 <body>
 
+<div id="auth">
+  <h2>🔒 パスワードを入力してください</h2>
+  <input type="password" id="pw">
+  <br><br>
+  <button onclick="checkPw()">入る</button>
+  <p id="pwError" style="color:red; display:none;">パスワードが違います</p>
+</div>
+
+<div id="app" style="display:none;">
 <h1>10秒当てクイズ</h1>
 
 <div id="time">0.00</div>
@@ -78,6 +91,7 @@
   <h2>🏆 ランキング</h2>
   <ol id="rankingList"></ol>
 </div>
+
 
 <script>
 let startTime = 0;
@@ -118,6 +132,7 @@ function showRanking() {
   });
 }
 
+//perfect回数取得　保存　表示
 function loadPerfectCount() {
   const count = localStorage.getItem(PERFECT_KEY);
   return count ? parseInt(count) : 0;
@@ -206,5 +221,53 @@ showRanking();
 showPerfectCount();
 </script>
 
+<script>
+const HASH = "a3c481c378cca710acee9503202cb29af1882b89a7e69170735d78022c852333"; 
+
+const inputField = document.getElementById("pw");
+const error = document.getElementById("pwError");
+
+/* Enterキー対応（スマホもOK） */
+inputField.addEventListener("keydown", function (event) {
+  if (event.key === "Enter") {
+    checkPw();
+  }
+});
+
+/* SHA-256でハッシュ化 */
+async function sha256(str) {
+  const buf = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(str)
+  );
+  return [...new Uint8Array(buf)]
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/* パスワード判定 */
+async function checkPw() {
+  const input = inputField.value;
+  const hashed = await sha256(input);
+
+  if (hashed === HASH) {
+    sessionStorage.setItem("auth", "ok");
+    document.getElementById("auth").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    error.style.display = "none";
+  } else {
+    error.style.display = "block";
+  }
+}
+
+/* 再読み込み対策 */
+window.onload = () => {
+  if (sessionStorage.getItem("auth") === "ok") {
+    document.getElementById("auth").style.display = "none";
+    document.getElementById("app").style.display = "block";
+  }
+};
+</script>
+
+
 </body>
-</html>
